@@ -1,0 +1,28 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid #789681;
+  outline-offset: 2px;
+}
