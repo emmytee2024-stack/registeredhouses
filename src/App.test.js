@@ -342,6 +342,33 @@ test('keeps multiple saved survey areas separate and restores persisted areas', 
   expect(readSavedSurveyAreas(storage)).toEqual(savedAreas);
 });
 
+test('keeps captured draft points pinned without connecting them until the area is plotted', () => {
+  const points = [
+    { latitude: 6.58, longitude: 3.25 },
+    { latitude: 6.58, longitude: 3.251 },
+    { latitude: 6.581, longitude: 3.251 },
+  ];
+  const draft = {
+    id: 'current-draft',
+    name: 'Current draft',
+    points,
+    closed: false,
+  };
+  const unplotted = createSurveyFeatureCollection([], draft);
+  const plotted = createSurveyFeatureCollection([], { ...draft, closed: true });
+
+  expect(unplotted.features.map((feature) => feature.properties.kind)).toEqual([
+    'survey-vertex',
+    'survey-vertex',
+    'survey-vertex',
+  ]);
+  expect(plotted.features.map((feature) => feature.properties.kind)).toEqual(expect.arrayContaining([
+    'survey-line',
+    'survey-area',
+    'survey-vertex',
+  ]));
+});
+
 test('provides an explicit plot-area action after capturing three boundary points', () => {
   const onPlotArea = jest.fn();
   const onCaptureMovementAsBoundaryChange = jest.fn();

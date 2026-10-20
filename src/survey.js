@@ -165,7 +165,7 @@ function createSurveyFeaturesForArea(area, active = false) {
   const color = /^#[\da-f]{6}$/i.test(area.color || '') ? area.color : DEFAULT_SURVEY_COLOR;
   const features = [];
 
-  if (area.points.length >= 2) {
+  if (area.points.length >= 2 && (!active || area.closed)) {
     const lineCoordinates = area.closed ? [...coordinates, coordinates[0]] : coordinates;
     features.push({
       type: 'Feature',

@@ -168,6 +168,9 @@ function SurveyPanel({
               ))}
             </ol>
           )}
+          {points.length > 0 && !isBoundaryClosed && (
+            <p className="survey-map-hint">Points are pinned. Capture each corner, then select Plot area to connect them.</p>
+          )}
           {pointIndexToMove !== null && (
             <p className="survey-map-hint">Tap the map to move point {pointIndexToMove + 1}.</p>
           )}

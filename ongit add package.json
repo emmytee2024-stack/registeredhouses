@@ -1,0 +1,14 @@
+warning: in the working copy of 'package.json', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/package.json b/package.json[m
+[1mindex d8f1677..b015c11 100644[m
+[1m--- a/package.json[m
+[1m+++ b/package.json[m
+[36m@@ -20,7 +20,7 @@[m
+   },[m
+   "scripts": {[m
+     "start": "react-scripts start",[m
+[31m-    "build": "cross-env CI=false react-scripts build",[m
+[32m+[m[32m   "build": "CI=false react-scripts build",[m
+     "test": "react-scripts test",[m
+     "eject": "react-scripts eject"[m
+   },[m

@@ -324,7 +324,7 @@ function App() {
   const [captureMovementAsBoundary, setCaptureMovementAsBoundary] = useState(false);
   const [surveyMapMode, setSurveyMapMode] = useState('idle');
   const [selectedSurveyPointIndex, setSelectedSurveyPointIndex] = useState(null);
-  const [isSurveyPanelCollapsed, setSurveyPanelCollapsed] = useState(false);
+  const [isSurveyPanelCollapsed, setSurveyPanelCollapsed] = useState(() => window.innerWidth <= 760);
   const [isCapturingSurveyGps, setCapturingSurveyGps] = useState(false);
   const [surveySaveError, setSurveySaveError] = useState('');
   const [surveyStorageError, setSurveyStorageError] = useState('');
@@ -515,19 +515,23 @@ function App() {
   }
 
   function plotSurveyArea() {
+    const validation = validateSurveyBoundary(activeSurveyPointsRef.current, true);
+    if (validation.status !== 'closed') {
+      setSurveySaveError(validation.reason || 'Add at least three valid points before plotting the area.');
+      return;
+    }
+
     setSurveyClosed(true);
     setSurveySaveError('');
     changeSurveyMapMode('idle');
 
-    if (activeSurveyPoints.length >= 2) {
-      const coordinates = activeSurveyPoints.map(({ longitude, latitude }) => [longitude, latitude]);
-      fitMapToArea(mapRef.current, {
-        geometry: {
-          type: 'LineString',
-          coordinates: [...coordinates, coordinates[0]],
-        },
-      }, 80, 18);
-    }
+    const coordinates = activeSurveyPointsRef.current.map(({ longitude, latitude }) => [longitude, latitude]);
+    fitMapToArea(mapRef.current, {
+      geometry: {
+        type: 'LineString',
+        coordinates: [...coordinates, coordinates[0]],
+      },
+    }, 80, 18);
   }
 
   function selectSavedSurveyArea(id) {
@@ -600,6 +604,7 @@ function App() {
     setLocationError('');
     setTrackingStatus('Checking location permission…');
     setTrackingLocation(true);
+    setFollowingLocation(true);
     locationStartPendingRef.current = true;
 
     const startWatching = () => {
@@ -1493,6 +1498,7 @@ function App() {
     const map = mapRef.current;
     if (!mapReady || !map || !userLocation) return;
 
+    const isFirstLocation = !userLocationMarkerRef.current;
     if (!userLocationMarkerRef.current) {
       const markerElement = document.createElement('div');
       markerElement.className = 'user-location-marker';
@@ -1505,7 +1511,12 @@ function App() {
     userLocationMarkerRef.current.setLngLat([userLocation.longitude, userLocation.latitude]);
 
     if (isFollowingLocation) {
-      map.flyTo({ center: [userLocation.longitude, userLocation.latitude], zoom: 16, duration: 700 });
+      map.easeTo({
+        center: [userLocation.longitude, userLocation.latitude],
+        ...(isFirstLocation ? { zoom: 16 } : {}),
+        duration: isFirstLocation ? 500 : 250,
+        essential: true,
+      });
     }
   }, [isFollowingLocation, mapReady, userLocation]);
 

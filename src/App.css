@@ -3079,3 +3079,191 @@
     left: 16px;
   }
 }
+
+.topbar {
+  gap: clamp(12px, 2vw, 24px);
+  padding-right: clamp(16px, 2.5vw, 34px);
+  padding-left: clamp(16px, 2.5vw, 34px);
+}
+
+.map-frame {
+  border-radius: 10px;
+}
+
+.registry-panel {
+  padding-right: 16px;
+}
+
+.map-location-badge,
+.map-caption,
+.map-style-toggle,
+.map-boundary-color-control,
+.map-custom-button,
+.map-custom-clear-button,
+.map-locate-button,
+.map-user-location,
+.map-route-panel,
+.map-legend {
+  border-radius: 8px;
+}
+
+.map-style-toggle {
+  padding: 4px;
+}
+
+.map-style-toggle button {
+  min-height: 34px;
+  border-radius: 6px;
+}
+
+.map-locate-button,
+.map-custom-button,
+.map-custom-clear-button {
+  min-height: 40px;
+}
+
+.map-route-actions button {
+  min-height: 34px;
+  border-radius: 6px;
+}
+
+@media (max-width: 760px) {
+  .topbar {
+    min-height: 62px;
+    gap: 8px;
+    padding: 9px 12px;
+  }
+
+  .brand-name {
+    font-size: 15px;
+  }
+
+  .brand-caption {
+    font-size: 9px;
+  }
+
+  .location-label {
+    min-height: 40px;
+    max-width: 120px;
+    padding: 0 8px;
+  }
+
+  .workspace,
+  .workspace.is-sidebar-collapsed {
+    gap: 12px;
+    padding: 10px;
+  }
+
+  .map-column {
+    height: clamp(360px, 56dvh, 560px);
+    min-height: 360px;
+  }
+
+  .map-frame {
+    min-height: 0;
+    border-radius: 12px;
+  }
+
+  .map-custom-button,
+  .map-custom-clear-button {
+    right: auto;
+    left: 10px;
+  }
+
+  .map-custom-button {
+    top: 184px;
+  }
+
+  .map-custom-clear-button {
+    top: 230px;
+  }
+
+  .map-locate-button {
+    top: 100px;
+    right: 10px;
+    min-height: 40px;
+    padding: 0 10px;
+  }
+
+  .map-user-location {
+    top: 148px;
+    right: 10px;
+    max-width: min(230px, calc(100% - 20px));
+  }
+
+  .map-route-panel {
+    top: 258px;
+    right: 10px;
+    width: min(280px, calc(100% - 20px));
+    max-height: min(22dvh, 150px);
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .map-route-actions {
+    gap: 4px;
+  }
+
+  .map-route-actions button {
+    min-height: 32px;
+    padding: 0 6px;
+    font-size: 8px;
+  }
+
+  .map-legend {
+    display: none;
+  }
+
+  .map-caption {
+    display: none;
+  }
+
+  .survey-panel {
+    bottom: 10px;
+    left: 10px;
+    width: min(370px, calc(100% - 20px));
+    max-height: min(58dvh, calc(100% - 20px));
+    border-radius: 12px;
+  }
+
+  .survey-panel-heading {
+    min-height: 58px;
+  }
+
+  .survey-panel-content {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .registry-panel {
+    min-height: 0;
+    padding: 8px 2px 0;
+  }
+
+  .directory-list {
+    max-height: min(42dvh, 360px);
+  }
+}
+
+@media (max-width: 380px) {
+  .brand-lockup {
+    gap: 7px;
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+  }
+
+  .location-label {
+    max-width: 105px;
+  }
+
+  .map-route-panel {
+    max-height: 18dvh;
+  }
+
+  .map-legend {
+    gap: 6px;
+    font-size: 8px;
+  }
+}
