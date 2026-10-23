@@ -33,6 +33,8 @@ import {
   countHousesInsideSurveyBoundary,
   createSurveyFeatureCollection,
   DEFAULT_SURVEY_COLOR,
+  downloadSurveyFile,
+  getPathDistance,
   getSurveyMetrics,
   readSavedSurveyAreas,
   SURVEY_AREAS_STORAGE_KEY,
@@ -501,6 +503,12 @@ function App() {
       points: activeSurveyPoints,
       color: surveyColor,
       closed: true,
+      surveyMethod: captureMovementAsBoundary || activeSurveyPoints.some((point) => point.source === 'gps-track') ? 'gps' : 'manual',
+      routePoints: captureMovementAsBoundary ? routePointsRef.current : [],
+      areaSquareMetres: getSurveyMetrics(activeSurveyPoints, true, validation).area,
+      perimeterMetres: getSurveyMetrics(activeSurveyPoints, true, validation).perimeter,
+      createdAt: savedSurveyAreas.find((savedArea) => savedArea.id === id)?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       savedAt: new Date().toISOString(),
     };
     setSavedSurveyAreas((current) => (
@@ -512,6 +520,36 @@ function App() {
     setActiveSurveyId(id);
     setSurveyName(area.name);
     setSurveySaveError('');
+  }
+
+  function renameSurveyArea(id) {
+    const area = savedSurveyAreas.find((savedArea) => savedArea.id === id);
+    if (!area) return;
+    const name = window.prompt('Rename survey', area.name);
+    if (name === null) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setSurveySaveError('Survey name cannot be empty.');
+      return;
+    }
+    setSavedSurveyAreas((current) => current.map((savedArea) => (
+      savedArea.id === id ? { ...savedArea, name: trimmed, updatedAt: new Date().toISOString() } : savedArea
+    )));
+    if (activeSurveyIdRef.current === id) setSurveyName(trimmed);
+    setSurveySaveError('');
+  }
+
+  function deleteSurveyArea(id) {
+    const area = savedSurveyAreas.find((savedArea) => savedArea.id === id);
+    if (!area || !window.confirm(`Delete “${area.name}”? This cannot be undone.`)) return;
+    setSavedSurveyAreas((current) => current.filter((savedArea) => savedArea.id !== id));
+    if (activeSurveyIdRef.current === id) {
+      activeSurveyIdRef.current = null;
+      setActiveSurveyId(null);
+      updateSurveyPoints([]);
+      setSurveyClosed(false);
+      setSurveyName('');
+    }
   }
 
   function plotSurveyArea() {
@@ -560,6 +598,9 @@ function App() {
     setSurveyClosed(area.closed);
     setSurveyName(area.name);
     setSurveyColor(/^#[\da-f]{6}$/i.test(area.color || '') ? area.color : DEFAULT_SURVEY_COLOR);
+    setCaptureMovementAsBoundary(area.surveyMethod === 'gps');
+    routePointsRef.current = Array.isArray(area.routePoints) ? area.routePoints : [];
+    setRoutePoints(routePointsRef.current);
     updateSelectedSurveyPoint(null);
     setSurveySaveError('');
   }
@@ -576,6 +617,8 @@ function App() {
     setSurveyName('');
     setSurveyColor(DEFAULT_SURVEY_COLOR);
     setSurveySaveError('');
+    routePointsRef.current = [];
+    setRoutePoints([]);
     updateSelectedSurveyPoint(null);
     changeSurveyMapMode('add');
   }
@@ -698,9 +741,10 @@ function App() {
 
   function centerOnCurrentLocation() {
     if (!userLocation || !mapRef.current) return;
+    setFollowingLocation(true);
     mapRef.current.flyTo({
       center: [userLocation.longitude, userLocation.latitude],
-      zoom: 16,
+      zoom: Math.max(mapRef.current.getZoom(), 16),
       duration: 700,
     });
   }
@@ -987,6 +1031,28 @@ function App() {
         id: layer.id,
         visibility: map.getLayoutProperty(layer.id, 'visibility') || 'visible',
       }));
+
+      map.addSource('location-accuracy-data', {
+        type: 'geojson',
+        data: EMPTY_FEATURE_COLLECTION,
+      });
+      map.addLayer({
+        id: 'location-accuracy-circle',
+        type: 'circle',
+        source: 'location-accuracy-data',
+        paint: {
+          'circle-radius': {
+            stops: [[0, 0], [20, 0]],
+            base: 2,
+          },
+          'circle-color': '#2878d0',
+          'circle-opacity': 0.12,
+          'circle-stroke-color': '#2878d0',
+          'circle-stroke-width': 1.5,
+          'circle-stroke-opacity': 0.35,
+          'circle-pitch-alignment': 'map',
+        },
+      });
 
       map.addSource('location-route-data', {
         type: 'geojson',
@@ -1470,6 +1536,14 @@ function App() {
       updateAreaLabelFilter(map, selectedAreaRef.current, selectedLocalGovernmentRef.current);
       map.once('idle', () => setGlobalStreetNames(getVisibleStreetNames(map)));
       map.once('idle', updateHouseSource);
+
+      // Stop auto-following when the user manually drags the map
+      map.on('dragstart', () => {
+        if (locationWatchIdRef.current !== null) {
+          setFollowingLocation(false);
+        }
+      });
+
       setMapReady(true);
     });
 
@@ -1509,6 +1583,26 @@ function App() {
       }).setLngLat([userLocation.longitude, userLocation.latitude]).addTo(map);
     }
     userLocationMarkerRef.current.setLngLat([userLocation.longitude, userLocation.latitude]);
+
+    // Update the accuracy circle radius in metres → pixels via a zoom-dependent expression
+    const accuracySource = map.getSource('location-accuracy-data');
+    if (accuracySource) {
+      const metersPerPixel = (156543.03392 * Math.cos((userLocation.latitude * Math.PI) / 180))
+        / (2 ** map.getZoom());
+      const radiusPx = Math.max(4, userLocation.accuracy / metersPerPixel);
+      map.setPaintProperty('location-accuracy-circle', 'circle-radius', radiusPx);
+      accuracySource.setData({
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          properties: {},
+          geometry: {
+            type: 'Point',
+            coordinates: [userLocation.longitude, userLocation.latitude],
+          },
+        }],
+      });
+    }
 
     if (isFollowingLocation) {
       map.easeTo({
@@ -2359,8 +2453,6 @@ function App() {
               isBoundaryClosed={surveyClosed}
               isCapturingGps={isCapturingSurveyGps}
               isTracking={isTrackingLocation}
-              captureMovementAsBoundary={captureMovementAsBoundary}
-              onCaptureMovementAsBoundaryChange={setCaptureMovementAsBoundary}
               locationError={locationError}
               mapMode={surveyMapMode}
               onCaptureGps={captureSurveyGpsPoint}
@@ -2393,6 +2485,23 @@ function App() {
               surveyName={surveyName}
               trackingStatus={trackingStatus}
               userLocation={userLocation}
+              routeDistance={getPathDistance(routePoints)}
+              onRenameSurvey={renameSurveyArea}
+              onDeleteSurvey={deleteSurveyArea}
+              onExportSurvey={(area, format) => downloadSurveyFile(area, format)}
+              onClearSurvey={() => {
+                if (!window.confirm('Clear all points in the current survey draft?')) return;
+                updateSurveyPoints([]);
+                setSurveyClosed(false);
+                updateSelectedSurveyPoint(null);
+              }}
+              onSurveyMethodChange={(method) => {
+                const currentMethod = captureMovementAsBoundary ? 'gps' : 'manual';
+                if (method !== currentMethod && activeSurveyPointsRef.current.length
+                  && !window.confirm('Change survey method? Your current boundary points will be kept.')) return;
+                setCaptureMovementAsBoundary(method === 'gps');
+              }}
+              surveyMethod={captureMovementAsBoundary ? 'gps' : 'manual'}
             />
             {isSidebarCollapsed && (
               <button
@@ -2468,8 +2577,18 @@ function App() {
               type="button"
             >
               <LocateFixed aria-hidden="true" size={14} />
-              {isTrackingLocation ? 'Stop tracking' : 'Start tracking'}
+              {isTrackingLocation ? 'Stop tracking' : 'Track my location'}
             </button>
+            {isTrackingLocation && userLocation && !isFollowingLocation && (
+              <button
+                className="map-locate-button map-recenter-button"
+                onClick={centerOnCurrentLocation}
+                type="button"
+              >
+                <LocateFixed aria-hidden="true" size={14} />
+                Re-centre on me
+              </button>
+            )}
             {(userLocation || locationError || isTrackingLocation || trackingStatus) && (
               <div className={`map-user-location${locationError ? ' has-error' : ''}`} aria-live="polite" role="status">
                 {userLocation && (
@@ -2489,13 +2608,15 @@ function App() {
               <div className="map-route-actions">
                 <button
                   aria-pressed={isFollowingLocation}
-                  onClick={() => setFollowingLocation((following) => !following)}
+                  className={isFollowingLocation ? 'is-active' : ''}
+                  onClick={() => {
+                    const next = !isFollowingLocation;
+                    setFollowingLocation(next);
+                    if (next) centerOnCurrentLocation();
+                  }}
                   type="button"
                 >
-                  {isFollowingLocation ? 'Follow: on' : 'Follow: off'}
-                </button>
-                <button disabled={!userLocation} onClick={centerOnCurrentLocation} type="button">
-                  Return to location
+                  {isFollowingLocation ? 'Following: on' : 'Following: off'}
                 </button>
                 <button disabled={routePoints.length === 0} onClick={fitRecordedRoute} type="button">
                   Fit full route

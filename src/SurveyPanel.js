@@ -1,4 +1,4 @@
-import { Crosshair, MapPin, PanelBottomClose, PanelBottomOpen, Save, Trash2 } from 'lucide-react';
+import { Crosshair, Download, MapPin, PanelBottomClose, PanelBottomOpen, Pencil, Save, Trash2, Undo2 } from 'lucide-react';
 
 function formatDistance(meters) {
   if (!Number.isFinite(meters)) return '—';
@@ -51,6 +51,13 @@ function SurveyPanel({
   isCapturingGps,
   isBoundaryClosed,
   housesOutside,
+  routeDistance = 0,
+  surveyMethod = 'manual',
+  onSurveyMethodChange,
+  onRenameSurvey,
+  onDeleteSurvey,
+  onExportSurvey,
+  onClearSurvey,
 }) {
   return (
     <section aria-label="Boundary surveying controls" className={`survey-panel${collapsed ? ' is-collapsed' : ''}`}>
@@ -102,17 +109,12 @@ function SurveyPanel({
               <MapPin aria-hidden="true" size={17} /> {mapMode === 'add' ? 'Tap map to add · Cancel' : 'Add point on map'}
             </button>
           </div>
-          <label className="survey-track-capture">
-            <input
-              checked={captureMovementAsBoundary}
-              onChange={(event) => onCaptureMovementAsBoundaryChange(event.target.checked)}
-              type="checkbox"
-            />
-            <span>
-              <strong>Capture walking track as boundary points</strong>
-              <small>Start GPS tracking, then walk the boundary. Only accepted GPS fixes are added.</small>
-            </span>
-          </label>
+          <fieldset className="survey-method-picker">
+            <legend>Survey method</legend>
+            <label><input checked={surveyMethod === 'manual'} onChange={() => onSurveyMethodChange?.('manual')} type="radio" /> Click to plot</label>
+            <label><input checked={surveyMethod === 'gps'} onChange={() => onSurveyMethodChange?.('gps')} type="radio" /> Walk with GPS</label>
+            {surveyMethod === 'gps' && <small>Start tracking to record accepted GPS fixes as boundary points.</small>}
+          </fieldset>
 
           <label className="survey-name-field">
             <span>Survey name</span>
@@ -142,6 +144,7 @@ function SurveyPanel({
             <div><span>Boundary points</span><strong>{points.length}</strong></div>
             <div><span>Area</span><strong>{formatArea(area)}</strong></div>
             <div><span>Perimeter</span><strong>{formatDistance(perimeter)}</strong></div>
+            <div><span>Distance travelled</span><strong>{formatDistance(routeDistance)}</strong></div>
             <div><span>Houses inside</span><strong>{housesInside === null ? '—' : housesInside}</strong></div>
             <div><span>Houses outside</span><strong>{housesOutside === null ? '—' : housesOutside} <small>of {houseCount} registered</small></strong></div>
           </div>
@@ -176,11 +179,14 @@ function SurveyPanel({
           )}
 
           <div className="survey-edit-actions">
+            <button disabled={!points.length} onClick={() => onRemovePoint(points.length - 1)} type="button">
+              <Undo2 aria-hidden="true" size={14} /> Undo last point
+            </button>
             <button className="survey-plot-action" disabled={points.length < 3} onClick={onPlotArea} type="button">
               <MapPin aria-hidden="true" size={15} /> Plot area
             </button>
             <button disabled={!isBoundaryClosed} onClick={onOpenBoundary} type="button">Reopen</button>
-            <button disabled={!points.length} onClick={onRemoveAllPoints} type="button">Clear points</button>
+            <button disabled={!points.length} onClick={onClearSurvey || onRemoveAllPoints} type="button">Clear points</button>
             <button disabled={!['closed', 'saved'].includes(boundaryStatus)} onClick={onSaveBoundary} type="button">
               <Save aria-hidden="true" size={15} /> {activeAreaId ? 'Save changes' : 'Save boundary'}
             </button>
@@ -196,6 +202,17 @@ function SurveyPanel({
               ))}
             </select>
           </label>
+          {activeAreaId && (() => {
+            const active = savedAreas.find((area) => area.id === activeAreaId);
+            return active ? (
+              <div className="survey-saved-actions">
+                <button onClick={() => onRenameSurvey?.(active.id)} type="button"><Pencil size={14} /> Rename</button>
+                <button onClick={() => onExportSurvey?.(active, 'geojson')} type="button"><Download size={14} /> GeoJSON</button>
+                <button onClick={() => onExportSurvey?.(active, 'csv')} type="button"><Download size={14} /> CSV</button>
+                <button onClick={() => onDeleteSurvey?.(active.id)} type="button"><Trash2 size={14} /> Delete</button>
+              </div>
+            ) : null;
+          })()}
           <button className="survey-new-button" disabled={points.length > 0 && boundaryStatus !== 'saved'} onClick={onStartNew} type="button">
             Start a new survey
           </button>

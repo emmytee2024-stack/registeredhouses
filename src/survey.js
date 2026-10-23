@@ -2,6 +2,63 @@ const EARTH_RADIUS_METERS = 6371008.8;
 export const SURVEY_AREAS_STORAGE_KEY = 'lagos-survey-areas-v1';
 export const DEFAULT_SURVEY_COLOR = '#ed9a45';
 
+export function exportSurveyGeoJson(area) {
+  const coordinates = area.points.map(({ longitude, latitude }) => [longitude, latitude]);
+  const closed = coordinates.length ? [...coordinates, coordinates[0]] : [];
+  return {
+    type: 'FeatureCollection',
+    features: [
+      ...(closed.length >= 4 ? [{
+        type: 'Feature',
+        properties: {
+          id: area.id,
+          name: area.name,
+          surveyMethod: area.surveyMethod || 'manual',
+          createdAt: area.createdAt || area.savedAt || null,
+          areaSquareMetres: area.areaSquareMetres ?? null,
+          perimeterMetres: area.perimeterMetres ?? null,
+          disclaimer: 'Approximate field observation; not a certified survey plan.',
+        },
+        geometry: { type: 'Polygon', coordinates: [closed] },
+      }] : []),
+      ...(area.routePoints?.length > 1 ? [{
+        type: 'Feature',
+        properties: { id: `${area.id}-route`, name: `${area.name} recorded route`, featureType: 'gps-route' },
+        geometry: { type: 'LineString', coordinates: area.routePoints.map(({ longitude, latitude }) => [longitude, latitude]) },
+      }] : []),
+    ],
+  };
+}
+
+export function exportSurveyCoordinatesCsv(area) {
+  const quote = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const rows = [['Point', 'Latitude', 'Longitude', 'Accuracy (m)', 'Source']];
+  area.points.forEach((point, index) => rows.push([
+    index + 1,
+    point.latitude,
+    point.longitude,
+    Number.isFinite(point.accuracy) ? point.accuracy : '',
+    point.source || area.surveyMethod || 'manual',
+  ]));
+  return rows.map((row) => row.map(quote).join(',')).join('\r\n');
+}
+
+export function downloadSurveyFile(area, format) {
+  const safeName = (area.name || 'survey').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'survey';
+  const date = new Date(area.createdAt || area.savedAt || Date.now()).toISOString().slice(0, 10);
+  const isGeoJson = format === 'geojson';
+  const body = isGeoJson
+    ? JSON.stringify(exportSurveyGeoJson(area), null, 2)
+    : exportSurveyCoordinatesCsv(area);
+  const blob = new Blob([body], { type: isGeoJson ? 'application/geo+json' : 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${safeName}-${date}.${isGeoJson ? 'geojson' : 'csv'}`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 function toRadians(degrees) {
   return (degrees * Math.PI) / 180;
 }
@@ -15,6 +72,10 @@ function distanceBetweenPoints(first, second) {
     + Math.cos(firstLatitude) * Math.cos(secondLatitude) * Math.sin(longitudeDifference / 2) ** 2;
 
   return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+}
+
+export function getPathDistance(points = []) {
+  return points.slice(1).reduce((total, point, index) => total + distanceBetweenPoints(points[index], point), 0);
 }
 
 function orientation(first, second, third) {
