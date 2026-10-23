@@ -366,6 +366,8 @@ function App() {
   const routePointsRef = useRef([]);
   const locationWatchIdRef = useRef(null);
   const locationStartPendingRef = useRef(false);
+  const locationTrackingActiveRef = useRef(false);
+  const locationTrackingSessionRef = useRef(0);
   const baseStyleLayersRef = useRef([]);
   const localGovernmentBoundariesRef = useRef(null);
   const localGovernmentAreaPointsRef = useRef(new Map());
@@ -430,6 +432,15 @@ function App() {
   surveyMapClickHandlersRef.current = { addSurveyPoint, updateSurveyPoint: updateSurveyPoints, updateSelectedSurveyPoint };
 
   function captureSurveyGpsPoint() {
+    // When tracking is already live, pin the same fix shown by the moving map marker.
+    // This lets the surveyor choose each corner instead of turning every GPS update
+    // into a boundary vertex.
+    if (isTrackingLocation && userLocation) {
+      addSurveyPoint({ ...userLocation, source: 'gps' });
+      setSurveySaveError('');
+      return;
+    }
+
     if (!navigator.geolocation || !window.isSecureContext) {
       setLocationError('GPS capture requires browser location support and a secure connection (HTTPS or localhost).');
       return;
@@ -626,15 +637,21 @@ function App() {
   function toggleUserLocation() {
     if (locationStartPendingRef.current) {
       locationStartPendingRef.current = false;
+      locationTrackingActiveRef.current = false;
+      locationTrackingSessionRef.current += 1;
       setTrackingLocation(false);
+      setFollowingLocation(false);
       setTrackingStatus('Location tracking cancelled.');
       return;
     }
 
     if (locationWatchIdRef.current !== null) {
+      locationTrackingActiveRef.current = false;
+      locationTrackingSessionRef.current += 1;
       navigator.geolocation.clearWatch(locationWatchIdRef.current);
       locationWatchIdRef.current = null;
       setTrackingLocation(false);
+      setFollowingLocation(false);
       setTrackingStatus('Tracking paused. Recorded route points are preserved.');
       return;
     }
@@ -653,10 +670,14 @@ function App() {
     const startWatching = () => {
       if (!locationStartPendingRef.current) return;
       locationStartPendingRef.current = false;
+      const sessionId = locationTrackingSessionRef.current + 1;
+      locationTrackingSessionRef.current = sessionId;
+      locationTrackingActiveRef.current = true;
       setTrackingStatus('Waiting for a GPS fix from this device…');
       try {
         locationWatchIdRef.current = navigator.geolocation.watchPosition(
         (position) => {
+          if (!locationTrackingActiveRef.current || sessionId !== locationTrackingSessionRef.current) return;
           const point = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -684,9 +705,6 @@ function App() {
             const updatedPoints = [...routePointsRef.current, point];
             routePointsRef.current = updatedPoints;
             setRoutePoints(updatedPoints);
-            if (captureMovementAsBoundaryRef.current) {
-              surveyMapClickHandlersRef.current.addSurveyPoint({ ...point, source: 'gps-track' });
-            }
             setTrackingStatus(lastRoutePoint
               ? `Movement recorded · GPS updated ${new Date(point.timestamp).toLocaleTimeString()}.`
               : `GPS fix received · route started ${new Date(point.timestamp).toLocaleTimeString()}.`);
@@ -700,6 +718,9 @@ function App() {
           setLocationError('');
         },
         (error) => {
+          if (!locationTrackingActiveRef.current || sessionId !== locationTrackingSessionRef.current) return;
+          locationTrackingActiveRef.current = false;
+          locationTrackingSessionRef.current += 1;
           const messages = {
             1: 'Location permission was denied. Allow location access for this site in your browser settings, then retry.',
             2: 'Your current location is unavailable. Check your device location settings and try again.',
@@ -707,6 +728,7 @@ function App() {
           };
           setLocationError(messages[error.code] || error.message || 'Unable to access your location.');
           setTrackingStatus('');
+          setFollowingLocation(false);
           if (locationWatchIdRef.current !== null) {
             navigator.geolocation.clearWatch(locationWatchIdRef.current);
             locationWatchIdRef.current = null;
@@ -716,9 +738,12 @@ function App() {
         { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 },
       );
       } catch (error) {
+        locationTrackingActiveRef.current = false;
+        locationTrackingSessionRef.current += 1;
         setLocationError(error.message || 'Unable to start location tracking.');
         setTrackingStatus('');
         setTrackingLocation(false);
+        setFollowingLocation(false);
       }
     };
 
@@ -727,6 +752,8 @@ function App() {
         .then((permission) => {
           if (permission.state === 'denied') {
             locationStartPendingRef.current = false;
+            locationTrackingActiveRef.current = false;
+            locationTrackingSessionRef.current += 1;
             setLocationError('Location access is blocked for this site. Allow location in the browser site settings and check that device location services are on.');
             setTrackingStatus('');
             setTrackingLocation(false);
@@ -1537,13 +1564,6 @@ function App() {
       map.once('idle', () => setGlobalStreetNames(getVisibleStreetNames(map)));
       map.once('idle', updateHouseSource);
 
-      // Stop auto-following when the user manually drags the map
-      map.on('dragstart', () => {
-        if (locationWatchIdRef.current !== null) {
-          setFollowingLocation(false);
-        }
-      });
-
       setMapReady(true);
     });
 
@@ -1554,6 +1574,8 @@ function App() {
 
     return () => {
       resizeObserver?.disconnect();
+      locationTrackingActiveRef.current = false;
+      locationTrackingSessionRef.current += 1;
       if (locationWatchIdRef.current !== null && navigator.geolocation) {
         navigator.geolocation.clearWatch(locationWatchIdRef.current);
       }

@@ -369,16 +369,15 @@ test('keeps captured draft points pinned without connecting them until the area 
   ]));
 });
 
-test('provides an explicit plot-area action after capturing three boundary points', () => {
+test('provides GPS waypoint capture and an explicit plot-area action', () => {
   const onPlotArea = jest.fn();
-  const onCaptureMovementAsBoundaryChange = jest.fn();
+  const onSurveyMethodChange = jest.fn();
   render(
     <SurveyPanel
       activeAreaId={null}
       area={null}
       boundaryReason=""
       boundaryStatus="open"
-      captureMovementAsBoundary={false}
       collapsed={false}
       houseCount={0}
       housesInside={null}
@@ -389,7 +388,6 @@ test('provides an explicit plot-area action after capturing three boundary point
       locationError=""
       mapMode="idle"
       onCaptureGps={jest.fn()}
-      onCaptureMovementAsBoundaryChange={onCaptureMovementAsBoundaryChange}
       onMapModeChange={jest.fn()}
       onOpenBoundary={jest.fn()}
       onPlotArea={onPlotArea}
@@ -400,6 +398,7 @@ test('provides an explicit plot-area action after capturing three boundary point
       onSelectSavedArea={jest.fn()}
       onStartNew={jest.fn()}
       onStartTracking={jest.fn()}
+      onSurveyMethodChange={onSurveyMethodChange}
       onSurveyColorChange={jest.fn()}
       onSurveyNameChange={jest.fn()}
       onToggleCollapsed={jest.fn()}
@@ -413,6 +412,7 @@ test('provides an explicit plot-area action after capturing three boundary point
       saveError=""
       savedAreas={[]}
       surveyColor="#ed9a45"
+      surveyMethod="manual"
       surveyName=""
       trackingStatus=""
       userLocation={null}
@@ -421,6 +421,7 @@ test('provides an explicit plot-area action after capturing three boundary point
 
   fireEvent.click(screen.getByRole('button', { name: /Plot area/ }));
   expect(onPlotArea).toHaveBeenCalledTimes(1);
-  fireEvent.click(screen.getByRole('checkbox', { name: /Capture walking track as boundary points/ }));
-  expect(onCaptureMovementAsBoundaryChange).toHaveBeenCalledWith(true);
+  expect(screen.getByRole('button', { name: /Pin current location/ })).toBeInTheDocument();
+  fireEvent.click(screen.getByLabelText(/Walk with GPS/));
+  expect(onSurveyMethodChange).toHaveBeenCalledWith('gps');
 });

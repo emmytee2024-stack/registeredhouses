@@ -95,7 +95,7 @@ function SurveyPanel({
 
           <div className="survey-actions">
             <button className="survey-action-button survey-primary-action" disabled={isCapturingGps} onClick={onCaptureGps} type="button">
-              <Crosshair aria-hidden="true" size={17} /> {isCapturingGps ? 'Getting GPS…' : 'Capture GPS point'}
+              <MapPin aria-hidden="true" size={17} /> {isCapturingGps ? 'Getting GPS…' : 'Pin current location'}
             </button>
             <button className="survey-action-button" onClick={onStartTracking} type="button">
               <Crosshair aria-hidden="true" size={17} /> {isTracking ? 'Stop GPS tracking' : 'Start GPS tracking'}
@@ -113,7 +113,7 @@ function SurveyPanel({
             <legend>Survey method</legend>
             <label><input checked={surveyMethod === 'manual'} onChange={() => onSurveyMethodChange?.('manual')} type="radio" /> Click to plot</label>
             <label><input checked={surveyMethod === 'gps'} onChange={() => onSurveyMethodChange?.('gps')} type="radio" /> Walk with GPS</label>
-            {surveyMethod === 'gps' && <small>Start tracking to record accepted GPS fixes as boundary points.</small>}
+            {surveyMethod === 'gps' && <small>Track your position as you walk. At each corner, select Pin current location to save a boundary point.</small>}
           </fieldset>
 
           <label className="survey-name-field">
@@ -172,7 +172,7 @@ function SurveyPanel({
             </ol>
           )}
           {points.length > 0 && !isBoundaryClosed && (
-            <p className="survey-map-hint">Points are pinned. Capture each corner, then select Plot area to connect them.</p>
+            <p className="survey-map-hint">Points are pinned in order. Pin each corner, then select Plot area to connect them.</p>
           )}
           {pointIndexToMove !== null && (
             <p className="survey-map-hint">Tap the map to move point {pointIndexToMove + 1}.</p>
