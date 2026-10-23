@@ -1310,6 +1310,30 @@
   font-weight: 650;
 }
 
+.map-track-button {
+  top: 142px;
+}
+
+.map-copy-coordinates {
+  justify-self: start;
+  padding: 4px 7px;
+  border: 1px solid #cbd4ca;
+  border-radius: 3px;
+  color: #344138;
+  background: #f7f9f5;
+  cursor: pointer;
+  font: inherit;
+}
+
+.house-registration-dialog form {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.house-registration-dialog .csv-mapping-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .map-locate-button:hover,
 .map-locate-button.is-tracking {
   border-color: #789b7e;
@@ -3286,6 +3310,10 @@
     padding: 0 10px;
   }
 
+  .map-track-button {
+    top: 144px;
+  }
+
   .map-user-location {
     top: 148px;
     right: 10px;
@@ -3366,5 +3394,69 @@
   .map-legend {
     gap: 6px;
     font-size: 8px;
+  }
+}
+
+@media (max-width: 760px) {
+  .header-actions {
+    min-width: 0;
+    gap: 4px;
+  }
+
+  .register-house-button {
+    width: 40px;
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .register-house-button svg {
+    flex: 0 0 auto;
+  }
+
+  .map-column {
+    height: clamp(400px, 64dvh, 620px);
+    min-height: 400px;
+  }
+
+  .survey-panel {
+    max-height: min(42dvh, calc(100% - 96px));
+  }
+
+  .map-user-location {
+    top: 190px;
+    max-height: 72px;
+    overflow-y: auto;
+  }
+
+  .map-recenter-button {
+    top: 100px;
+    right: 108px;
+  }
+
+  .map-copy-coordinates {
+    display: none;
+  }
+
+  .map-route-panel {
+    top: 270px;
+    max-height: min(18dvh, 120px);
+  }
+}
+
+@media (max-width: 380px) {
+  .map-user-location {
+    top: 188px;
+    max-width: min(210px, calc(100% - 20px));
+  }
+
+  .map-recenter-button {
+    right: 102px;
+  }
+
+  .map-route-panel {
+    top: 262px;
   }
 }

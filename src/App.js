@@ -313,6 +313,9 @@ function App() {
   const [areaFilter, setAreaFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('any');
   const [isImportOpen, setImportOpen] = useState(false);
+  const [isHouseDialogOpen, setHouseDialogOpen] = useState(false);
+  const [houseForm, setHouseForm] = useState({ name: '', street: '', area: '', latitude: '', longitude: '', accuracy: '', buildingType: '', floors: '', notes: '', status: 'Pending', registeredBy: '' });
+  const [isLocating, setLocating] = useState(false);
   const [isCustomDialogOpen, setCustomDialogOpen] = useState(false);
   const [customCoordinates, setCustomCoordinates] = useState([]);
   const [customCoordinateError, setCustomCoordinateError] = useState('');
@@ -764,6 +767,46 @@ function App() {
       return;
     }
     startWatching();
+  }
+
+  function locateCurrentPosition() {
+    if (!navigator.geolocation || !window.isSecureContext) {
+      setLocationError('Location access requires browser geolocation support and a secure connection (HTTPS or localhost).');
+      return;
+    }
+    setLocating(true);
+    setLocationError('');
+    navigator.geolocation.getCurrentPosition((position) => {
+      const point = { latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy, timestamp: position.timestamp || Date.now() };
+      if (!Number.isFinite(point.latitude) || !Number.isFinite(point.longitude) || !Number.isFinite(point.accuracy) || point.latitude < -90 || point.latitude > 90 || point.longitude < -180 || point.longitude > 180 || point.accuracy < 0) {
+        setLocationError('The device returned an invalid location reading.');
+      } else {
+        setUserLocation(point);
+        setFollowingLocation(false);
+        mapRef.current?.flyTo({ center: [point.longitude, point.latitude], zoom: Math.max(mapRef.current.getZoom(), 16), duration: 700 });
+      }
+      setLocating(false);
+    }, (error) => {
+      const messages = { 1: 'Location permission was denied. Allow location access for this site in browser settings.', 2: 'Your current location is unavailable. Check device location services and try again.', 3: 'Finding your location timed out. Try again in an open area.' };
+      setLocationError(messages[error.code] || error.message || 'Unable to access your location.');
+      setLocating(false);
+    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+  }
+
+  function submitHouseRegistration(event) {
+    event.preventDefault();
+    const latitude = Number(houseForm.latitude);
+    const longitude = Number(houseForm.longitude);
+    if (!houseForm.name.trim() || !Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) return;
+    const duplicate = houses.find((house) => Math.abs(house.latitude - latitude) < 0.0001 && Math.abs(house.longitude - longitude) < 0.0001);
+    if (duplicate && !window.confirm(`This point is close to “${duplicate.name}”. Register it anyway?`)) return;
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `property-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const propertyId = `LHR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
+    const house = { id, propertyId, name: houseForm.name.trim(), street: houseForm.street.trim(), area: houseForm.area.trim(), localGovernment: selectedLocalGovernment, latitude, longitude, accuracy: houseForm.accuracy === '' ? null : Number(houseForm.accuracy), buildingType: houseForm.buildingType, floors: houseForm.floors === '' ? null : Number(houseForm.floors), notes: houseForm.notes.trim(), status: houseForm.status, registeredBy: houseForm.registeredBy.trim(), addedAt: new Date().toISOString() };
+    setHouses((current) => [...current, house]);
+    setHouseDialogOpen(false);
+    setHouseForm({ name: '', street: '', area: selectedArea, latitude: '', longitude: '', accuracy: '', buildingType: '', floors: '', notes: '', status: 'Pending', registeredBy: '' });
+    handleHouseSelect(house);
   }
 
   function centerOnCurrentLocation() {
@@ -1574,6 +1617,7 @@ function App() {
 
     return () => {
       resizeObserver?.disconnect();
+      locationStartPendingRef.current = false;
       locationTrackingActiveRef.current = false;
       locationTrackingSessionRef.current += 1;
       if (locationWatchIdRef.current !== null && navigator.geolocation) {
@@ -2207,6 +2251,7 @@ function App() {
           </select>
         </label>
         <div className="header-actions">
+          <button aria-label="Register house" className="button button-outline register-house-button" onClick={() => setHouseDialogOpen(true)} title="Register house" type="button"><MapPinned aria-hidden="true" size={15} /><span>Register house</span></button>
           <details className="csv-help">
             <summary aria-label="CSV format help" title="CSV format help">
               <CircleHelp aria-hidden="true" size={17} />
@@ -2593,13 +2638,21 @@ function App() {
               </div>
             )}
             <button
+              className="map-locate-button"
+              disabled={isLocating}
+              onClick={locateCurrentPosition}
+              type="button"
+            >
+              <LocateFixed aria-hidden="true" size={14} />{isLocating ? 'Locating…' : 'Locate Me'}
+            </button>
+            <button
               aria-pressed={isTrackingLocation}
-              className={`map-locate-button${isTrackingLocation ? ' is-tracking' : ''}`}
+              className={`map-locate-button map-track-button${isTrackingLocation ? ' is-tracking' : ''}`}
               onClick={toggleUserLocation}
               type="button"
             >
               <LocateFixed aria-hidden="true" size={14} />
-              {isTrackingLocation ? 'Stop tracking' : 'Track my location'}
+              {isTrackingLocation ? 'Stop tracking' : 'Start tracking'}
             </button>
             {isTrackingLocation && userLocation && !isFollowingLocation && (
               <button
@@ -2619,6 +2672,7 @@ function App() {
                     <span>Lat {userLocation.latitude.toFixed(6)} · Lng {userLocation.longitude.toFixed(6)}</span>
                     <small>Accuracy ±{Math.round(userLocation.accuracy)} m</small>
                     <small>GPS updated {new Date(userLocation.timestamp).toLocaleTimeString()}</small>
+                    <button className="map-copy-coordinates" onClick={() => navigator.clipboard?.writeText(`${userLocation.latitude.toFixed(6)}, ${userLocation.longitude.toFixed(6)}`)} type="button">Copy coordinates</button>
                   </>
                 )}
                 {isTrackingLocation && !userLocation && <span>Waiting for your location…</span>}
@@ -2682,6 +2736,30 @@ function App() {
           </div>
         </section>
       </main>
+      {isHouseDialogOpen && (
+        <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setHouseDialogOpen(false); }}>
+          <section aria-labelledby="house-registration-title" aria-modal="true" className="import-dialog house-registration-dialog" role="dialog">
+            <header className="import-dialog-header"><div><p className="eyebrow">PROPERTY REGISTER</p><h2 id="house-registration-title">Register a house</h2></div><button aria-label="Close registration dialog" className="icon-button" onClick={() => setHouseDialogOpen(false)} type="button"><X aria-hidden="true" size={18} /></button></header>
+            <form onSubmit={submitHouseRegistration}>
+              <div className="csv-mapping-grid">
+                <label className="csv-mapping-field"><span>House name or identifier *</span><input required value={houseForm.name} onChange={(event) => setHouseForm({ ...houseForm, name: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Street</span><input value={houseForm.street} onChange={(event) => setHouseForm({ ...houseForm, street: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Neighbourhood</span><input value={houseForm.area} onChange={(event) => setHouseForm({ ...houseForm, area: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Latitude *</span><input required type="number" step="any" min="-90" max="90" value={houseForm.latitude} onChange={(event) => setHouseForm({ ...houseForm, latitude: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Longitude *</span><input required type="number" step="any" min="-180" max="180" value={houseForm.longitude} onChange={(event) => setHouseForm({ ...houseForm, longitude: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>GPS accuracy (m)</span><input type="number" min="0" step="any" value={houseForm.accuracy} onChange={(event) => setHouseForm({ ...houseForm, accuracy: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Building type</span><input value={houseForm.buildingType} onChange={(event) => setHouseForm({ ...houseForm, buildingType: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Number of floors</span><input type="number" min="1" step="1" value={houseForm.floors} onChange={(event) => setHouseForm({ ...houseForm, floors: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Status</span><select value={houseForm.status} onChange={(event) => setHouseForm({ ...houseForm, status: event.target.value })}><option>Pending</option><option>Registered</option><option>Needs review</option></select></label>
+                <label className="csv-mapping-field"><span>Registered by</span><input value={houseForm.registeredBy} onChange={(event) => setHouseForm({ ...houseForm, registeredBy: event.target.value })} /></label>
+                <label className="csv-mapping-field"><span>Notes</span><textarea value={houseForm.notes} onChange={(event) => setHouseForm({ ...houseForm, notes: event.target.value })} /></label>
+              </div>
+              <p className="custom-area-description">A unique property ID and creation timestamp will be assigned. Records are stored in this browser.</p>
+              <footer className="import-dialog-actions"><button className="button button-outline" onClick={() => setHouseDialogOpen(false)} type="button">Cancel</button><button className="button button-primary" type="submit">Save house</button></footer>
+            </form>
+          </section>
+        </div>
+      )}
       {isCustomDialogOpen && (
         <div
           className="modal-backdrop"
