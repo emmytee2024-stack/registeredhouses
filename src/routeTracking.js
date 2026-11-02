@@ -15,6 +15,21 @@ function distanceBetweenPoints(first, second) {
   return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
+export function hasMeaningfulLocationMovement(previousPoint, point) {
+  if (!previousPoint) return true;
+  if (
+    !Number.isFinite(point.latitude)
+    || !Number.isFinite(point.longitude)
+    || !Number.isFinite(point.accuracy)
+    || !Number.isFinite(previousPoint.latitude)
+    || !Number.isFinite(previousPoint.longitude)
+    || !Number.isFinite(previousPoint.accuracy)
+  ) return false;
+
+  const movementThreshold = Math.max(8, previousPoint.accuracy, point.accuracy);
+  return distanceBetweenPoints(previousPoint, point) > movementThreshold;
+}
+
 export function getRoutePointRejectionReason(previousPoint, point) {
   if (
     !Number.isFinite(point.latitude)

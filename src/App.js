@@ -27,7 +27,11 @@ import {
   parseHouseCsv,
   STORAGE_KEY,
 } from './houses';
-import { getRoutePointRejectionReason, MAX_ROUTE_ACCURACY_METERS } from './routeTracking';
+import {
+  getRoutePointRejectionReason,
+  hasMeaningfulLocationMovement,
+  MAX_ROUTE_ACCURACY_METERS,
+} from './routeTracking';
 import SurveyPanel from './SurveyPanel';
 import {
   countHousesInsideSurveyBoundary,
@@ -366,6 +370,7 @@ function App() {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
   const userLocationMarkerRef = useRef(null);
+  const displayedLocationRef = useRef(null);
   const routePointsRef = useRef([]);
   const locationWatchIdRef = useRef(null);
   const locationStartPendingRef = useRef(false);
@@ -811,6 +816,8 @@ function App() {
 
   function centerOnCurrentLocation() {
     if (!userLocation || !mapRef.current) return;
+    displayedLocationRef.current = userLocation;
+    userLocationMarkerRef.current?.setLngLat([userLocation.longitude, userLocation.latitude]);
     setFollowingLocation(true);
     mapRef.current.flyTo({
       center: [userLocation.longitude, userLocation.latitude],
@@ -1642,6 +1649,10 @@ function App() {
     const map = mapRef.current;
     if (!mapReady || !map || !userLocation) return;
 
+    const previousDisplayedLocation = displayedLocationRef.current;
+    const hasMeaningfulMovement = hasMeaningfulLocationMovement(previousDisplayedLocation, userLocation);
+    if (hasMeaningfulMovement) displayedLocationRef.current = userLocation;
+    const displayedLocation = displayedLocationRef.current;
     const isFirstLocation = !userLocationMarkerRef.current;
     if (!userLocationMarkerRef.current) {
       const markerElement = document.createElement('div');
@@ -1650,16 +1661,17 @@ function App() {
       userLocationMarkerRef.current = new maplibregl.Marker({
         element: markerElement,
         anchor: 'center',
-      }).setLngLat([userLocation.longitude, userLocation.latitude]).addTo(map);
+      }).setLngLat([displayedLocation.longitude, displayedLocation.latitude]).addTo(map);
+    } else if (hasMeaningfulMovement) {
+      userLocationMarkerRef.current.setLngLat([displayedLocation.longitude, displayedLocation.latitude]);
     }
-    userLocationMarkerRef.current.setLngLat([userLocation.longitude, userLocation.latitude]);
 
     const updateAccuracyCircle = () => {
       const accuracySource = map.getSource('location-accuracy-data');
       if (!accuracySource) return;
-      const metersPerPixel = (156543.03392 * Math.cos((userLocation.latitude * Math.PI) / 180))
+      const metersPerPixel = (156543.03392 * Math.cos((displayedLocation.latitude * Math.PI) / 180))
         / (2 ** map.getZoom());
-      const radiusPx = Math.max(4, userLocation.accuracy / metersPerPixel);
+      const radiusPx = Math.max(4, displayedLocation.accuracy / metersPerPixel);
       map.setPaintProperty('location-accuracy-circle', 'circle-radius', radiusPx);
       accuracySource.setData({
         type: 'FeatureCollection',
@@ -1668,7 +1680,7 @@ function App() {
           properties: {},
           geometry: {
             type: 'Point',
-            coordinates: [userLocation.longitude, userLocation.latitude],
+            coordinates: [displayedLocation.longitude, displayedLocation.latitude],
           },
         }],
       });
@@ -1676,9 +1688,9 @@ function App() {
     updateAccuracyCircle();
     map.on('zoom', updateAccuracyCircle);
 
-    if (isFollowingLocation) {
+    if (isFollowingLocation && hasMeaningfulMovement) {
       map.easeTo({
-        center: [userLocation.longitude, userLocation.latitude],
+        center: [displayedLocation.longitude, displayedLocation.latitude],
         ...(isFirstLocation ? { zoom: 16 } : {}),
         duration: isFirstLocation ? 500 : 250,
         essential: true,

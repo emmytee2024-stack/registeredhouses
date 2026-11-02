@@ -7,7 +7,11 @@ import {
   parseHouseCsv,
 } from './houses';
 import { createCustomAreaFeatures, findAreaAtCoordinate } from './customArea';
-import { getRoutePointRejectionReason, MAX_ROUTE_ACCURACY_METERS } from './routeTracking';
+import {
+  getRoutePointRejectionReason,
+  hasMeaningfulLocationMovement,
+  MAX_ROUTE_ACCURACY_METERS,
+} from './routeTracking';
 import {
   countHousesInsideSurveyBoundary,
   createSurveyFeatureCollection,
@@ -274,6 +278,18 @@ test('filters inaccurate, duplicate, out-of-order, and implausible GPS readings'
     latitude: 91,
     timestamp: 11000,
   })).toBe('invalid');
+});
+
+test('ignores GPS jitter and follows movement beyond the reported accuracy', () => {
+  const first = { latitude: 6.58, longitude: 3.25, accuracy: 10 };
+  const smallJitter = { latitude: 6.58005, longitude: 3.25, accuracy: 10 };
+  const realMovement = { latitude: 6.581, longitude: 3.25, accuracy: 10 };
+  const impreciseJitter = { latitude: 6.5805, longitude: 3.25, accuracy: 74 };
+
+  expect(hasMeaningfulLocationMovement(null, first)).toBe(true);
+  expect(hasMeaningfulLocationMovement(first, smallJitter)).toBe(false);
+  expect(hasMeaningfulLocationMovement(first, realMovement)).toBe(true);
+  expect(hasMeaningfulLocationMovement(first, impreciseJitter)).toBe(false);
 });
 
 test('validates, measures, and classifies houses against a closed survey boundary', () => {
