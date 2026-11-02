@@ -367,6 +367,8 @@ test('keeps captured draft points pinned without connecting them until the area 
     'survey-area',
     'survey-vertex',
   ]));
+  expect(plotted.features.find((feature) => feature.properties.kind === 'survey-area').properties.active)
+    .toBe(true);
 });
 
 test('provides GPS waypoint capture and an explicit plot-area action', () => {
@@ -424,4 +426,80 @@ test('provides GPS waypoint capture and an explicit plot-area action', () => {
   expect(screen.getByRole('button', { name: /Pin current location/ })).toBeInTheDocument();
   fireEvent.click(screen.getByLabelText(/Walk with GPS/));
   expect(onSurveyMethodChange).toHaveBeenCalledWith('gps');
+});
+
+test('keeps GPS pinning and plotting available in the compact survey controls', () => {
+  const onCaptureGps = jest.fn();
+  const onPlotArea = jest.fn();
+  const onStartTracking = jest.fn();
+  const onToggleCollapsed = jest.fn();
+  const points = [
+    { latitude: 6.58, longitude: 3.25 },
+    { latitude: 6.58, longitude: 3.251 },
+    { latitude: 6.581, longitude: 3.251 },
+  ];
+  const props = {
+    activeAreaId: null,
+    area: null,
+    boundaryReason: '',
+    boundaryStatus: 'open',
+    collapsed: true,
+    houseCount: 0,
+    housesInside: null,
+    housesOutside: null,
+    isBoundaryClosed: false,
+    isCapturingGps: false,
+    isTracking: false,
+    locationError: '',
+    mapMode: 'idle',
+    onCaptureGps,
+    onMapModeChange: jest.fn(),
+    onOpenBoundary: jest.fn(),
+    onPlotArea,
+    onPointIndexToMove: jest.fn(),
+    onRemoveAllPoints: jest.fn(),
+    onRemovePoint: jest.fn(),
+    onSaveBoundary: jest.fn(),
+    onSelectSavedArea: jest.fn(),
+    onStartNew: jest.fn(),
+    onStartTracking,
+    onSurveyNameChange: jest.fn(),
+    onSurveyColorChange: jest.fn(),
+    onToggleCollapsed,
+    perimeter: null,
+    pointIndexToMove: null,
+    points: [],
+    saveError: '',
+    savedAreas: [],
+    surveyColor: '#ed9a45',
+    surveyName: '',
+    trackingStatus: '',
+    userLocation: null,
+  };
+  const { rerender } = render(<SurveyPanel {...props} />);
+
+  expect(screen.queryByText('FIELD SURVEY')).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /Pin location/ })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Plot area' })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Start GPS' }));
+  expect(onStartTracking).toHaveBeenCalledTimes(1);
+
+  rerender(
+    <SurveyPanel
+      {...props}
+      isTracking
+      points={points}
+      userLocation={{ latitude: 6.58, longitude: 3.25, accuracy: 8 }}
+    />,
+  );
+  expect(screen.getByText('Following your location')).toBeInTheDocument();
+  expect(screen.getByText(/Map follows your GPS/)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Pin location' })).toBeEnabled();
+  expect(screen.getByRole('button', { name: 'Plot area' })).toBeEnabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Pin location' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Plot area' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+  expect(onCaptureGps).toHaveBeenCalledTimes(1);
+  expect(onPlotArea).toHaveBeenCalledTimes(1);
+  expect(onToggleCollapsed).toHaveBeenCalledTimes(1);
 });

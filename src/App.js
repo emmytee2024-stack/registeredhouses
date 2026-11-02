@@ -329,7 +329,7 @@ function App() {
   const [captureMovementAsBoundary, setCaptureMovementAsBoundary] = useState(false);
   const [surveyMapMode, setSurveyMapMode] = useState('idle');
   const [selectedSurveyPointIndex, setSelectedSurveyPointIndex] = useState(null);
-  const [isSurveyPanelCollapsed, setSurveyPanelCollapsed] = useState(() => window.innerWidth <= 760);
+  const [isSurveyPanelCollapsed, setSurveyPanelCollapsed] = useState(true);
   const [isCapturingSurveyGps, setCapturingSurveyGps] = useState(false);
   const [surveySaveError, setSurveySaveError] = useState('');
   const [surveyStorageError, setSurveyStorageError] = useState('');
@@ -1032,12 +1032,16 @@ function App() {
       return;
     }
 
-    const uniqueCoordinates = new Set(coordinates.map(({ latitude, longitude }) => `${latitude},${longitude}`));
-    const area = coordinates.reduce((total, coordinate, index) => {
+    const validation = validateSurveyBoundary(coordinates, true);
+    if (validation.status !== 'closed') {
+      setCustomCoordinateError(validation.reason);
+      return;
+    }
+    const twiceArea = coordinates.reduce((total, coordinate, index) => {
       const next = coordinates[(index + 1) % coordinates.length];
       return total + coordinate.longitude * next.latitude - next.longitude * coordinate.latitude;
     }, 0);
-    if (uniqueCoordinates.size < 3 || Math.abs(area) < 1e-10) {
+    if (Math.abs(twiceArea) < 1e-10) {
       setCustomCoordinateError('Use at least three distinct points that form a boundary.');
       return;
     }
@@ -1316,7 +1320,7 @@ function App() {
         filter: ['==', ['geometry-type'], 'Polygon'],
         paint: {
           'fill-color': ['coalesce', ['get', 'color'], DEFAULT_SURVEY_COLOR],
-          'fill-opacity': 0.3,
+          'fill-opacity': ['case', ['get', 'active'], 0.42, 0.28],
         },
       });
       map.addLayer({
@@ -1650,9 +1654,9 @@ function App() {
     }
     userLocationMarkerRef.current.setLngLat([userLocation.longitude, userLocation.latitude]);
 
-    // Update the accuracy circle radius in metres → pixels via a zoom-dependent expression
-    const accuracySource = map.getSource('location-accuracy-data');
-    if (accuracySource) {
+    const updateAccuracyCircle = () => {
+      const accuracySource = map.getSource('location-accuracy-data');
+      if (!accuracySource) return;
       const metersPerPixel = (156543.03392 * Math.cos((userLocation.latitude * Math.PI) / 180))
         / (2 ** map.getZoom());
       const radiusPx = Math.max(4, userLocation.accuracy / metersPerPixel);
@@ -1668,7 +1672,9 @@ function App() {
           },
         }],
       });
-    }
+    };
+    updateAccuracyCircle();
+    map.on('zoom', updateAccuracyCircle);
 
     if (isFollowingLocation) {
       map.easeTo({
@@ -1678,6 +1684,8 @@ function App() {
         essential: true,
       });
     }
+
+    return () => map.off('zoom', updateAccuracyCircle);
   }, [isFollowingLocation, mapReady, userLocation]);
 
   useEffect(() => {
@@ -2645,15 +2653,6 @@ function App() {
             >
               <LocateFixed aria-hidden="true" size={14} />{isLocating ? 'Locating…' : 'Locate Me'}
             </button>
-            <button
-              aria-pressed={isTrackingLocation}
-              className={`map-locate-button map-track-button${isTrackingLocation ? ' is-tracking' : ''}`}
-              onClick={toggleUserLocation}
-              type="button"
-            >
-              <LocateFixed aria-hidden="true" size={14} />
-              {isTrackingLocation ? 'Stop tracking' : 'Start tracking'}
-            </button>
             {isTrackingLocation && userLocation && !isFollowingLocation && (
               <button
                 className="map-locate-button map-recenter-button"
@@ -2680,7 +2679,8 @@ function App() {
                 {locationError && <span role="alert">{locationError}</span>}
               </div>
             )}
-            <div className="map-route-panel" aria-label="Live movement tracking">
+            {routePoints.length > 0 && (
+              <div className="map-route-panel" aria-label="Live movement tracking">
               <div className="map-route-actions">
                 <button
                   aria-pressed={isFollowingLocation}
@@ -2718,7 +2718,8 @@ function App() {
                 </>
               )}
               <small>Route filters readings over {MAX_ROUTE_ACCURACY_METERS} m accuracy, duplicate points, and implausible GPS jumps.</small>
-            </div>
+              </div>
+            )}
             <div className="map-location-badge">
               <span className="map-badge-dot" />
               <span>{selectedLocalGovernment.toUpperCase()} LGA</span>

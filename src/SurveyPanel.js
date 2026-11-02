@@ -61,14 +61,74 @@ function SurveyPanel({
 }) {
   return (
     <section aria-label="Boundary surveying controls" className={`survey-panel${collapsed ? ' is-collapsed' : ''}`}>
+      {collapsed ? (
+        <div className="survey-quick-panel">
+          <div className="survey-quick-status" aria-live="polite">
+            <div>
+              <strong>
+                {isTracking
+                  ? userLocation ? 'Following your location' : 'Finding your location…'
+                  : userLocation ? 'GPS location found' : 'Start GPS to begin'}
+              </strong>
+              {userLocation && <span>±{Math.round(userLocation.accuracy)} m accuracy</span>}
+            </div>
+            <span className="survey-quick-point-count">{points.length} {points.length === 1 ? 'point' : 'points'}</span>
+          </div>
+          <div className="survey-quick-actions">
+            <button
+              aria-pressed={isTracking}
+              className="survey-action-button"
+              onClick={onStartTracking}
+              type="button"
+            >
+              <Crosshair aria-hidden="true" size={16} /> {isTracking ? 'Stop GPS' : 'Start GPS'}
+            </button>
+            <button
+              className="survey-action-button"
+              disabled={!userLocation || isCapturingGps}
+              onClick={onCaptureGps}
+              type="button"
+            >
+              <MapPin aria-hidden="true" size={16} /> {isCapturingGps ? 'Finding GPS…' : 'Pin location'}
+            </button>
+            <button
+              className="survey-action-button survey-plot-action"
+              disabled={points.length < 3}
+              onClick={onPlotArea}
+              type="button"
+            >
+              <MapPin aria-hidden="true" size={16} /> Plot area
+            </button>
+            <button
+              aria-expanded={false}
+              className="survey-action-button survey-details-action"
+              onClick={onToggleCollapsed}
+              type="button"
+            >
+              <PanelBottomOpen aria-hidden="true" size={16} /> Details
+            </button>
+          </div>
+          <p className="survey-quick-hint">
+            {isTracking
+              ? 'Map follows your GPS. Pin each corner as you reach it, then plot the area.'
+              : isBoundaryClosed
+                ? 'Area plotted. Continue pinning corners or open the details.'
+                : 'Move to each corner, pin its location, then plot the area.'}
+          </p>
+          {locationError && <p className="survey-error" role="alert">{locationError}</p>}
+          {saveError && <p className="survey-error" role="alert">{saveError}</p>}
+          {boundaryReason && <p className="survey-boundary-reason" role="status">{boundaryReason}</p>}
+        </div>
+      ) : (
+        <>
       <header className="survey-panel-heading">
         <div>
-          <span className="survey-panel-kicker">FIELD SURVEY</span>
-          <h2>Boundary survey <span className={`survey-status is-${boundaryStatus}`}>{boundaryStatus}</span></h2>
+          <span className="survey-panel-kicker">BOUNDARY TOOLS</span>
+          <h2>Survey details <span className={`survey-status is-${boundaryStatus}`}>{boundaryStatus}</span></h2>
         </div>
         <button
           aria-expanded={!collapsed}
-          aria-label={collapsed ? 'Expand survey controls' : 'Collapse survey controls'}
+          aria-label="Close survey details"
           className="survey-collapse-button"
           onClick={onToggleCollapsed}
           type="button"
@@ -76,7 +136,6 @@ function SurveyPanel({
           {collapsed ? <PanelBottomOpen aria-hidden="true" size={18} /> : <PanelBottomClose aria-hidden="true" size={18} />}
         </button>
       </header>
-      {!collapsed && (
         <div className="survey-panel-content">
           <div className="survey-gps-summary" aria-live="polite">
             <div className="survey-gps-heading">
@@ -221,6 +280,7 @@ function SurveyPanel({
             GPS accuracy varies. These measurements are approximate field observations, not an official land or property boundary.
           </p>
         </div>
+        </>
       )}
     </section>
   );
