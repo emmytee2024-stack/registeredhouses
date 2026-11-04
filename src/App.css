@@ -2603,6 +2603,28 @@
     box-shadow: 0 12px 34px rgb(0 0 0 / 36%);
   }
 
+.survey-panel-show-button {
+  position: absolute;
+  z-index: 6;
+  bottom: 12px;
+  left: 12px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid #52665a;
+  border-radius: 8px;
+  color: #e8f0e9;
+  background: rgb(18 28 21 / 97%);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 30%);
+  cursor: pointer;
+}
+
+.survey-panel-show-button:hover {
+  background: #304636;
+}
+
   .survey-panel-heading {
     min-height: 58px;
     display: flex;

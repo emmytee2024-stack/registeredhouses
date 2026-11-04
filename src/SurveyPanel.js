@@ -60,7 +60,11 @@ function SurveyPanel({
   onClearSurvey,
 }) {
   return (
-    <section aria-label="Boundary surveying controls" className={`survey-panel${collapsed ? ' is-collapsed' : ''}`}>
+    <section
+      aria-label="Boundary surveying controls"
+      className={`survey-panel${collapsed ? ' is-collapsed' : ''}`}
+      id="boundary-survey-panel"
+    >
       {collapsed ? (
         <div className="survey-quick-panel">
           <div className="survey-quick-status" aria-live="polite">

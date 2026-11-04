@@ -313,6 +313,24 @@ test('validates, measures, and classifies houses against a closed survey boundar
   ], points)).toBe(1);
 });
 
+test('calculates survey polygon area on a spherical earth model', () => {
+  const equatorialSquare = [
+    { latitude: 0, longitude: 0 },
+    { latitude: 0, longitude: 1 },
+    { latitude: 1, longitude: 1 },
+    { latitude: 1, longitude: 0 },
+  ];
+  const highLatitudeSquare = equatorialSquare.map((point) => ({
+    ...point,
+    latitude: point.latitude + 60,
+  }));
+  const equatorialArea = getSurveyMetrics(equatorialSquare, true).area;
+  const highLatitudeArea = getSurveyMetrics(highLatitudeSquare, true).area;
+
+  expect(Math.abs(equatorialArea - 12363718145.18)).toBeLessThan(1);
+  expect(Math.abs(highLatitudeArea - 6088417933.46)).toBeLessThan(1);
+});
+
 test('explains repeated points and self-crossing survey polygons', () => {
   const repeated = [
     { latitude: 6.58, longitude: 3.25 },

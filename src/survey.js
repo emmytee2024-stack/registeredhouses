@@ -70,8 +70,12 @@ function distanceBetweenPoints(first, second) {
   const secondLatitude = toRadians(second.latitude);
   const haversine = Math.sin(latitudeDifference / 2) ** 2
     + Math.cos(firstLatitude) * Math.cos(secondLatitude) * Math.sin(longitudeDifference / 2) ** 2;
+  const clampedHaversine = Math.min(1, Math.max(0, haversine));
 
-  return EARTH_RADIUS_METERS * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
+  return EARTH_RADIUS_METERS * 2 * Math.atan2(
+    Math.sqrt(clampedHaversine),
+    Math.sqrt(1 - clampedHaversine),
+  );
 }
 
 export function getPathDistance(points = []) {
@@ -167,17 +171,11 @@ export function getSurveyMetrics(points, closed, validation = validateSurveyBoun
     sum + distanceBetweenPoints(point, points[(index + 1) % points.length])
   ), 0);
 
-  const meanLatitudeDegrees = points.reduce((sum, point) => sum + point.latitude, 0) / points.length;
-  const meanLatitude = toRadians(meanLatitudeDegrees);
-  const meanLongitude = points.reduce((sum, point) => sum + point.longitude, 0) / points.length;
-  const projected = points.map((point) => ({
-    x: EARTH_RADIUS_METERS * toRadians(point.longitude - meanLongitude) * Math.cos(meanLatitude),
-    y: EARTH_RADIUS_METERS * toRadians(point.latitude - meanLatitudeDegrees),
-  }));
-  const area = Math.abs(projected.reduce((sum, point, index) => {
-    const next = projected[(index + 1) % projected.length];
-    return sum + point.x * next.y - next.x * point.y;
-  }, 0)) / 2;
+  const area = Math.abs(points.reduce((sum, point, index) => {
+    const next = points[(index + 1) % points.length];
+    return sum + toRadians(next.longitude - point.longitude)
+      * (2 + Math.sin(toRadians(point.latitude)) + Math.sin(toRadians(next.latitude)));
+  }, 0)) * (EARTH_RADIUS_METERS ** 2) / 2;
 
   return { area, perimeter };
 }

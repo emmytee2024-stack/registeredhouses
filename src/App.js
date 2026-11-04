@@ -333,6 +333,7 @@ function App() {
   const [captureMovementAsBoundary, setCaptureMovementAsBoundary] = useState(false);
   const [surveyMapMode, setSurveyMapMode] = useState('idle');
   const [selectedSurveyPointIndex, setSelectedSurveyPointIndex] = useState(null);
+  const [isSurveyPanelHidden, setSurveyPanelHidden] = useState(false);
   const [isSurveyPanelCollapsed, setSurveyPanelCollapsed] = useState(true);
   const [isCapturingSurveyGps, setCapturingSurveyGps] = useState(false);
   const [surveySaveError, setSurveySaveError] = useState('');
@@ -581,6 +582,7 @@ function App() {
     setSurveyClosed(true);
     setSurveySaveError('');
     changeSurveyMapMode('idle');
+    setSurveyPanelHidden(true);
 
     const coordinates = activeSurveyPointsRef.current.map(({ longitude, latitude }) => [longitude, latitude]);
     fitMapToArea(mapRef.current, {
@@ -2528,68 +2530,84 @@ function App() {
         <section className="map-column" aria-label={`Map of ${selectedLocalGovernment} registered houses`}>
           <div className="map-frame">
             <div aria-label={`Map showing registered houses in ${selectedLocalGovernment}`} className="map-canvas" ref={mapContainerRef} />
-            <SurveyPanel
-              activeAreaId={activeSurveyId}
-              area={surveyMetrics.area}
-              boundaryReason={surveyValidation.reason}
-              boundaryStatus={surveyBoundaryStatus}
-              collapsed={isSurveyPanelCollapsed}
-              houseCount={surveyHouseCount}
-              housesInside={surveyHousesInside}
-              housesOutside={surveyHousesOutside}
-              isBoundaryClosed={surveyClosed}
-              isCapturingGps={isCapturingSurveyGps}
-              isTracking={isTrackingLocation}
-              locationError={locationError}
-              mapMode={surveyMapMode}
-              onCaptureGps={captureSurveyGpsPoint}
-              onPlotArea={plotSurveyArea}
-              onMapModeChange={changeSurveyMapMode}
-              onOpenBoundary={() => {
-                setSurveyClosed(false);
-                setSurveySaveError('');
-              }}
-              onPointIndexToMove={updateSelectedSurveyPoint}
-              onRemoveAllPoints={() => {
-                updateSurveyPoints([]);
-                setSurveyClosed(false);
-                updateSelectedSurveyPoint(null);
-              }}
-              onRemovePoint={removeSurveyPoint}
-              onSaveBoundary={saveSurveyBoundary}
-              onSelectSavedArea={selectSavedSurveyArea}
-              onStartNew={startNewSurvey}
-              onStartTracking={toggleUserLocation}
-              onSurveyNameChange={setSurveyName}
-              surveyColor={surveyColor}
-              onSurveyColorChange={setSurveyColor}
-              onToggleCollapsed={() => setSurveyPanelCollapsed((collapsed) => !collapsed)}
-              perimeter={surveyMetrics.perimeter}
-              pointIndexToMove={selectedSurveyPointIndex}
-              points={activeSurveyPoints}
-              saveError={surveySaveError || surveyStorageError}
-              savedAreas={savedSurveyAreas}
-              surveyName={surveyName}
-              trackingStatus={trackingStatus}
-              userLocation={userLocation}
-              routeDistance={getPathDistance(routePoints)}
-              onRenameSurvey={renameSurveyArea}
-              onDeleteSurvey={deleteSurveyArea}
-              onExportSurvey={(area, format) => downloadSurveyFile(area, format)}
-              onClearSurvey={() => {
-                if (!window.confirm('Clear all points in the current survey draft?')) return;
-                updateSurveyPoints([]);
-                setSurveyClosed(false);
-                updateSelectedSurveyPoint(null);
-              }}
-              onSurveyMethodChange={(method) => {
-                const currentMethod = captureMovementAsBoundary ? 'gps' : 'manual';
-                if (method !== currentMethod && activeSurveyPointsRef.current.length
-                  && !window.confirm('Change survey method? Your current boundary points will be kept.')) return;
-                setCaptureMovementAsBoundary(method === 'gps');
-              }}
-              surveyMethod={captureMovementAsBoundary ? 'gps' : 'manual'}
-            />
+            {isSurveyPanelHidden ? (
+              <button
+                aria-controls="boundary-survey-panel"
+                aria-expanded={false}
+                className="survey-panel-show-button"
+                onClick={() => {
+                  setSurveyPanelHidden(false);
+                  setSurveyPanelCollapsed(false);
+                }}
+                type="button"
+              >
+                <MapPinned aria-hidden="true" size={16} />
+                <span>Show survey tools</span>
+              </button>
+            ) : (
+              <SurveyPanel
+                activeAreaId={activeSurveyId}
+                area={surveyMetrics.area}
+                boundaryReason={surveyValidation.reason}
+                boundaryStatus={surveyBoundaryStatus}
+                collapsed={isSurveyPanelCollapsed}
+                houseCount={surveyHouseCount}
+                housesInside={surveyHousesInside}
+                housesOutside={surveyHousesOutside}
+                isBoundaryClosed={surveyClosed}
+                isCapturingGps={isCapturingSurveyGps}
+                isTracking={isTrackingLocation}
+                locationError={locationError}
+                mapMode={surveyMapMode}
+                onCaptureGps={captureSurveyGpsPoint}
+                onPlotArea={plotSurveyArea}
+                onMapModeChange={changeSurveyMapMode}
+                onOpenBoundary={() => {
+                  setSurveyClosed(false);
+                  setSurveySaveError('');
+                }}
+                onPointIndexToMove={updateSelectedSurveyPoint}
+                onRemoveAllPoints={() => {
+                  updateSurveyPoints([]);
+                  setSurveyClosed(false);
+                  updateSelectedSurveyPoint(null);
+                }}
+                onRemovePoint={removeSurveyPoint}
+                onSaveBoundary={saveSurveyBoundary}
+                onSelectSavedArea={selectSavedSurveyArea}
+                onStartNew={startNewSurvey}
+                onStartTracking={toggleUserLocation}
+                onSurveyNameChange={setSurveyName}
+                surveyColor={surveyColor}
+                onSurveyColorChange={setSurveyColor}
+                onToggleCollapsed={() => setSurveyPanelCollapsed((collapsed) => !collapsed)}
+                perimeter={surveyMetrics.perimeter}
+                pointIndexToMove={selectedSurveyPointIndex}
+                points={activeSurveyPoints}
+                saveError={surveySaveError || surveyStorageError}
+                savedAreas={savedSurveyAreas}
+                surveyName={surveyName}
+                trackingStatus={trackingStatus}
+                userLocation={userLocation}
+                routeDistance={getPathDistance(routePoints)}
+                onRenameSurvey={renameSurveyArea}
+                onDeleteSurvey={deleteSurveyArea}
+                onExportSurvey={(area, format) => downloadSurveyFile(area, format)}
+                onClearSurvey={() => {
+                  if (!window.confirm('Clear all points in the current survey draft?')) return;
+                  updateSurveyPoints([]);
+                  setSurveyClosed(false);
+                  updateSelectedSurveyPoint(null);
+                }}
+                onSurveyMethodChange={(method) => {
+                  const currentMethod = captureMovementAsBoundary ? 'gps' : 'manual';
+                  if (method !== currentMethod && activeSurveyPointsRef.current.length
+                    && !window.confirm('Change survey method? Your current boundary points will be kept.')) return;
+                  setCaptureMovementAsBoundary(method === 'gps');
+                }}
+                surveyMethod={captureMovementAsBoundary ? 'gps' : 'manual'}
+              />
+            )}
             {isSidebarCollapsed && (
               <button
                 aria-controls="house-register-panel"
