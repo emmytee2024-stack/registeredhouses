@@ -348,6 +348,7 @@ function App() {
   const [mapReady, setMapReady] = useState(false);
   const [isMapRecentering, setMapRecentering] = useState(false);
   const [userLocation, setUserLocation] = useState(null);
+  const [isLocationPanelHidden, setLocationPanelHidden] = useState(false);
   const [isTrackingLocation, setTrackingLocation] = useState(false);
   const [routePoints, setRoutePoints] = useState([]);
   const [isFollowingLocation, setFollowingLocation] = useState(true);
@@ -441,6 +442,7 @@ function App() {
   surveyMapClickHandlersRef.current = { addSurveyPoint, updateSurveyPoint: updateSurveyPoints, updateSelectedSurveyPoint };
 
   function captureSurveyGpsPoint() {
+    setLocationPanelHidden(false);
     // When tracking is already live, pin the same fix shown by the moving map marker.
     // This lets the surveyor choose each corner instead of turning every GPS update
     // into a boundary vertex.
@@ -671,6 +673,7 @@ function App() {
       return;
     }
 
+    setLocationPanelHidden(false);
     setLocationError('');
     setTrackingStatus('Checking location permission…');
     setTrackingLocation(true);
@@ -777,6 +780,7 @@ function App() {
   }
 
   function locateCurrentPosition() {
+    setLocationPanelHidden(false);
     if (!navigator.geolocation || !window.isSecureContext) {
       setLocationError('Location access requires browser geolocation support and a secure connection (HTTPS or localhost).');
       return;
@@ -2560,6 +2564,7 @@ function App() {
                 locationError={locationError}
                 mapMode={surveyMapMode}
                 onCaptureGps={captureSurveyGpsPoint}
+                onClose={() => setSurveyPanelHidden(true)}
                 onPlotArea={plotSurveyArea}
                 onMapModeChange={changeSurveyMapMode}
                 onOpenBoundary={() => {
@@ -2693,11 +2698,21 @@ function App() {
                 Re-centre on me
               </button>
             )}
-            {(userLocation || locationError || isTrackingLocation || trackingStatus) && (
+            {!isLocationPanelHidden && (userLocation || locationError || isTrackingLocation || trackingStatus) && (
               <div className={`map-user-location${locationError ? ' has-error' : ''}`} aria-live="polite" role="status">
+                <div className="map-user-location-heading">
+                  {userLocation && <strong>{isTrackingLocation ? 'Live location' : 'Last location'}</strong>}
+                  <button
+                    aria-label="Close location details"
+                    className="map-user-location-close"
+                    onClick={() => setLocationPanelHidden(true)}
+                    type="button"
+                  >
+                    <X aria-hidden="true" size={14} />
+                  </button>
+                </div>
                 {userLocation && (
                   <>
-                    <strong>{isTrackingLocation ? 'Live location' : 'Last location'}</strong>
                     <span>Lat {userLocation.latitude.toFixed(6)} · Lng {userLocation.longitude.toFixed(6)}</span>
                     <small>Accuracy ±{Math.round(userLocation.accuracy)} m</small>
                     <small>GPS updated {new Date(userLocation.timestamp).toLocaleTimeString()}</small>

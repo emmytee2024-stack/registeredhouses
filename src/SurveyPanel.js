@@ -1,4 +1,4 @@
-import { Crosshair, Download, MapPin, PanelBottomClose, PanelBottomOpen, Pencil, Save, Trash2, Undo2 } from 'lucide-react';
+import { Crosshair, Download, MapPin, PanelBottomClose, PanelBottomOpen, Pencil, Save, Trash2, Undo2, X } from 'lucide-react';
 
 function formatDistance(meters) {
   if (!Number.isFinite(meters)) return '—';
@@ -15,6 +15,7 @@ function formatArea(squareMeters) {
 function SurveyPanel({
   collapsed,
   onToggleCollapsed,
+  onClose,
   userLocation,
   isTracking,
   captureMovementAsBoundary,
@@ -77,6 +78,14 @@ function SurveyPanel({
               {userLocation && <span>±{Math.round(userLocation.accuracy)} m accuracy</span>}
             </div>
             <span className="survey-quick-point-count">{points.length} {points.length === 1 ? 'point' : 'points'}</span>
+            <button
+              aria-label="Close survey tools"
+              className="survey-close-button"
+              onClick={onClose}
+              type="button"
+            >
+              <X aria-hidden="true" size={16} />
+            </button>
           </div>
           <div className="survey-quick-actions">
             <button
@@ -130,15 +139,25 @@ function SurveyPanel({
           <span className="survey-panel-kicker">BOUNDARY TOOLS</span>
           <h2>Survey details <span className={`survey-status is-${boundaryStatus}`}>{boundaryStatus}</span></h2>
         </div>
-        <button
-          aria-expanded={!collapsed}
-          aria-label="Close survey details"
-          className="survey-collapse-button"
-          onClick={onToggleCollapsed}
-          type="button"
-        >
-          {collapsed ? <PanelBottomOpen aria-hidden="true" size={18} /> : <PanelBottomClose aria-hidden="true" size={18} />}
-        </button>
+        <div className="survey-panel-heading-actions">
+          <button
+            aria-label="Close survey tools"
+            className="survey-close-button"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" size={16} />
+          </button>
+          <button
+            aria-expanded={!collapsed}
+            aria-label="Collapse survey details"
+            className="survey-collapse-button"
+            onClick={onToggleCollapsed}
+            type="button"
+          >
+            <PanelBottomClose aria-hidden="true" size={18} />
+          </button>
+        </div>
       </header>
         <div className="survey-panel-content">
           <div className="survey-gps-summary" aria-live="polite">

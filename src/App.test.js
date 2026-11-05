@@ -407,6 +407,7 @@ test('keeps captured draft points pinned without connecting them until the area 
 
 test('provides GPS waypoint capture and an explicit plot-area action', () => {
   const onPlotArea = jest.fn();
+  const onClose = jest.fn();
   const onSurveyMethodChange = jest.fn();
   render(
     <SurveyPanel
@@ -424,6 +425,7 @@ test('provides GPS waypoint capture and an explicit plot-area action', () => {
       locationError=""
       mapMode="idle"
       onCaptureGps={jest.fn()}
+      onClose={onClose}
       onMapModeChange={jest.fn()}
       onOpenBoundary={jest.fn()}
       onPlotArea={onPlotArea}
@@ -457,6 +459,8 @@ test('provides GPS waypoint capture and an explicit plot-area action', () => {
 
   fireEvent.click(screen.getByRole('button', { name: /Plot area/ }));
   expect(onPlotArea).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Close survey tools' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: /Pin current location/ })).toBeInTheDocument();
   fireEvent.click(screen.getByLabelText(/Walk with GPS/));
   expect(onSurveyMethodChange).toHaveBeenCalledWith('gps');
@@ -467,6 +471,7 @@ test('keeps GPS pinning and plotting available in the compact survey controls', 
   const onPlotArea = jest.fn();
   const onStartTracking = jest.fn();
   const onToggleCollapsed = jest.fn();
+  const onClose = jest.fn();
   const points = [
     { latitude: 6.58, longitude: 3.25 },
     { latitude: 6.58, longitude: 3.251 },
@@ -487,6 +492,7 @@ test('keeps GPS pinning and plotting available in the compact survey controls', 
     locationError: '',
     mapMode: 'idle',
     onCaptureGps,
+    onClose,
     onMapModeChange: jest.fn(),
     onOpenBoundary: jest.fn(),
     onPlotArea,
@@ -533,7 +539,9 @@ test('keeps GPS pinning and plotting available in the compact survey controls', 
   fireEvent.click(screen.getByRole('button', { name: 'Pin location' }));
   fireEvent.click(screen.getByRole('button', { name: 'Plot area' }));
   fireEvent.click(screen.getByRole('button', { name: 'Details' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Close survey tools' }));
   expect(onCaptureGps).toHaveBeenCalledTimes(1);
   expect(onPlotArea).toHaveBeenCalledTimes(1);
   expect(onToggleCollapsed).toHaveBeenCalledTimes(1);
+  expect(onClose).toHaveBeenCalledTimes(1);
 });
